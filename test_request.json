@@ -1,0 +1,9 @@
+{
+	"participants": [
+		{ "lat": 37.7749, "lng": -122.4194 },
+		{ "address": "Golden Gate Park, San Francisco, CA" }
+	],
+	"categories": ["restaurant", "cafe"],
+	"limit": 5,
+	"transport_mode": "DRIVE"
+}
