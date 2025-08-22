@@ -1,13 +1,22 @@
 FROM rust:1.87-slim as builder
 
+# Install system dependencies required for building Rust applications with OpenSSL
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set the working directory
 WORKDIR /usr/src/app
 
 # Copy the Cargo.toml and Cargo.lock files
 COPY Cargo.toml Cargo.lock ./
 
-# Create a dummy main.rs to build dependencies
-RUN mkdir src && echo "fn main() {}" > src/main.rs
+# Create dummy source files to build dependencies
+RUN mkdir src && \
+    echo "fn main() {}" > src/main.rs && \
+    echo "" > src/lib.rs
 
 # Build dependencies
 RUN cargo build --release && rm -rf src
