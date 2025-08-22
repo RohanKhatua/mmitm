@@ -141,6 +141,7 @@ pub struct Coordinate {
 }
 
 #[derive(Debug, Serialize)]
+#[allow(dead_code)]
 pub struct VenueRecommendation {
     pub name: String,
     pub address: String,
