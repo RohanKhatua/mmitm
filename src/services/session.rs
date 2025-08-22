@@ -7,7 +7,7 @@ use crate::{
     models::{
         AppState, CreateSessionRequest, CreateSessionResponse, EnhancedVenueRecommendation,
         GenerateRecommendationsRequest, JoinSessionRequest, JoinSessionResponse, Participant,
-        ParticipantInput, Session, SessionStatus, SessionStatusResponse, TransportMode,
+        ParticipantInput, Session, SessionStatus, SessionStatusResponse,
         UpdateParticipantLocationRequest,
     },
     services::{

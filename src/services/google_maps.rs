@@ -298,9 +298,9 @@ impl GoogleMapsService {
 
         // Transpose matrix to get travel times per place
         let mut transposed = vec![vec![0u32; participants.len()]; places.len()];
-        for i in 0..participants.len() {
-            for j in 0..places.len() {
-                transposed[j][i] = travel_times[i][j];
+        for (i, row) in travel_times.iter().enumerate() {
+            for (j, value) in row.iter().enumerate() {
+                transposed[j][i] = *value;
             }
         }
 

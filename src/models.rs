@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use uuid::Uuid;
 
 use crate::config::Config;
 
@@ -121,19 +120,14 @@ pub enum ParticipantInput {
 }
 
 // NEW: Transport mode options
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum TransportMode {
+    #[default]
     Drive,
     Walk,
     Transit,
     Bicycle,
-}
-
-impl Default for TransportMode {
-    fn default() -> Self {
-        TransportMode::Drive
-    }
 }
 
 fn default_limit() -> usize {
@@ -182,6 +176,7 @@ pub struct PlaceCandidate {
 pub struct VenueWithTravelTimes {
     pub place: PlaceCandidate,
     pub address: String,
+    #[allow(dead_code)]
     pub google_url: String,
     pub travel_times: Vec<u32>, // in minutes
     pub total_travel_time: u32,
@@ -296,8 +291,10 @@ pub struct GoogleGeocodingResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct GoogleGeocodeResult {
+    #[allow(dead_code)]
     pub formatted_address: String,
     pub geometry: GoogleGeometry,
+    #[allow(dead_code)]
     pub place_id: String,
 }
 
