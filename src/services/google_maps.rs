@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use crate::{
     error::AppError,
     models::{
-        Coordinate, PlaceCandidate, SearchCenter, VenueWithTravelTimes,
-        GooglePlacesNewResponse, GooglePlaceDetailsNewResponse, GoogleDistanceMatrixResponse,
+        Coordinate, GoogleDistanceMatrixResponse, GooglePlaceDetailsNewResponse,
+        GooglePlacesNewResponse, PlaceCandidate, SearchCenter, VenueWithTravelTimes,
     },
 };
 
@@ -26,7 +26,9 @@ impl GoogleMapsService {
         categories: &[String],
     ) -> Result<Vec<PlaceCandidate>, AppError> {
         // Use the new Places API (New) with all categories in a single request
-        let places = self.search_places_nearby_new(search_center, categories).await?;
+        let places = self
+            .search_places_nearby_new(search_center, categories)
+            .await?;
         Ok(places)
     }
 
@@ -38,7 +40,7 @@ impl GoogleMapsService {
     ) -> Result<Vec<PlaceCandidate>, AppError> {
         // Use the new Places API (New) endpoint
         let url = "https://places.googleapis.com/v1/places:searchNearby";
-        
+
         // Construct request body for the new API
         let request_body = serde_json::json!({
             "includedTypes": categories,
@@ -55,8 +57,13 @@ impl GoogleMapsService {
             "rankPreference": "POPULARITY"
         });
 
-        tracing::debug!("Searching for places with types {:?} near {},{} with radius {}m", 
-            categories, search_center.coordinate.lat, search_center.coordinate.lng, search_center.radius);
+        tracing::debug!(
+            "Searching for places with types {:?} near {},{} with radius {}m",
+            categories,
+            search_center.coordinate.lat,
+            search_center.coordinate.lng,
+            search_center.radius
+        );
 
         let response = self
             .client
@@ -130,12 +137,16 @@ impl GoogleMapsService {
         let place_details = self.get_place_details_batch(places).await?;
 
         // Get travel times using Distance Matrix API
-        let travel_times = self.get_distance_matrix(participants, places, transport_mode).await?;
+        let travel_times = self
+            .get_distance_matrix(participants, places, transport_mode)
+            .await?;
 
         let mut venues = Vec::new();
 
         for (i, place) in places.iter().enumerate() {
-            if let (Some(details), Some(times)) = (place_details.get(&place.place_id), travel_times.get(i)) {
+            if let (Some(details), Some(times)) =
+                (place_details.get(&place.place_id), travel_times.get(i))
+            {
                 if times.iter().all(|&time| time > 0) {
                     // All participants have valid travel times
                     let total_time: u32 = times.iter().sum();
@@ -169,9 +180,9 @@ impl GoogleMapsService {
 
         // Process in smaller batches to avoid overwhelming the API
         for place_batch in places.chunks(10) {
-            let batch_futures = place_batch.iter().map(|place| {
-                self.get_place_details(&place.place_id)
-            });
+            let batch_futures = place_batch
+                .iter()
+                .map(|place| self.get_place_details(&place.place_id));
 
             let batch_results = futures::future::join_all(batch_futures).await;
 
@@ -231,14 +242,14 @@ impl GoogleMapsService {
             .collect();
 
         let url = "https://maps.googleapis.com/maps/api/distancematrix/json";
-        
+
         let mode = match transport_mode {
             crate::models::TransportMode::Drive => "driving",
             crate::models::TransportMode::Walk => "walking",
             crate::models::TransportMode::Transit => "transit",
             crate::models::TransportMode::Bicycle => "bicycling",
         };
-        
+
         let params = [
             ("origins", origins.join("|")),
             ("destinations", destinations.join("|")),
@@ -247,15 +258,13 @@ impl GoogleMapsService {
             ("key", self.api_key.clone()),
         ];
 
-        tracing::debug!("Getting travel times for {} origins to {} destinations", 
-            origins.len(), destinations.len());
+        tracing::debug!(
+            "Getting travel times for {} origins to {} destinations",
+            origins.len(),
+            destinations.len()
+        );
 
-        let response = self
-            .client
-            .get(url)
-            .query(&params)
-            .send()
-            .await?;
+        let response = self.client.get(url).query(&params).send().await?;
 
         if !response.status().is_success() {
             return Err(AppError::GoogleApiError(format!(
@@ -280,7 +289,8 @@ impl GoogleMapsService {
             for (place_idx, element) in row.elements.iter().enumerate() {
                 if element.status == "OK" {
                     if let Some(duration) = &element.duration {
-                        travel_times[participant_idx][place_idx] = duration.value / 60; // Convert to minutes
+                        travel_times[participant_idx][place_idx] = duration.value / 60;
+                        // Convert to minutes
                     }
                 }
             }

@@ -1,13 +1,12 @@
-use axum::{extract::State, response::Json, extract::Path};
+use axum::{extract::Path, extract::State, response::Json};
 use std::sync::Arc;
 
 use crate::{
     error::AppError,
     models::{
-        AppState, CreateSessionRequest, CreateSessionResponse,
-        JoinSessionRequest, JoinSessionResponse,
-        UpdateParticipantLocationRequest, GenerateRecommendationsRequest,
-        SessionStatusResponse,
+        AppState, CreateSessionRequest, CreateSessionResponse, GenerateRecommendationsRequest,
+        JoinSessionRequest, JoinSessionResponse, SessionStatusResponse,
+        UpdateParticipantLocationRequest,
     },
     services::session::SessionService,
 };
@@ -20,9 +19,13 @@ pub async fn create_session(
     tracing::info!("Creating new session: {}", request.name);
 
     let response = SessionService::create_session(&state, request).await?;
-    
-    tracing::info!("Created session {} with join code {}", response.session_id, response.join_code);
-    
+
+    tracing::info!(
+        "Created session {} with join code {}",
+        response.session_id,
+        response.join_code
+    );
+
     Ok(Json(response))
 }
 
@@ -34,9 +37,13 @@ pub async fn join_session(
     tracing::info!("User {} joining session", request.participant_name);
 
     let response = SessionService::join_session(&state, request).await?;
-    
-    tracing::info!("User {} joined session {}", response.user_id, response.session.id);
-    
+
+    tracing::info!(
+        "User {} joined session {}",
+        response.user_id,
+        response.session.id
+    );
+
     Ok(Json(response))
 }
 
@@ -45,10 +52,14 @@ pub async fn update_participant_location(
     State(state): State<Arc<AppState>>,
     Json(request): Json<UpdateParticipantLocationRequest>,
 ) -> Result<Json<SessionStatusResponse>, AppError> {
-    tracing::info!("Updating location for user {} in session {}", request.user_id, request.session_id);
+    tracing::info!(
+        "Updating location for user {} in session {}",
+        request.user_id,
+        request.session_id
+    );
 
     let response = SessionService::update_participant_location(&state, request).await?;
-    
+
     Ok(Json(response))
 }
 
@@ -61,9 +72,9 @@ pub async fn generate_session_recommendations(
     tracing::info!("Generating recommendations for session {}", session_id);
 
     let response = SessionService::generate_recommendations(&state, request).await?;
-    
+
     tracing::info!("Generated recommendations for session {}", session_id);
-    
+
     Ok(Json(response))
 }
 
@@ -75,7 +86,7 @@ pub async fn get_session_status(
     tracing::debug!("Getting status for session {}", session_id);
 
     let response = SessionService::get_session_status(&state, &session_id).await?;
-    
+
     Ok(Json(response))
 }
 
@@ -86,7 +97,7 @@ pub async fn cleanup_expired_sessions(
     tracing::info!("Cleaning up expired sessions");
 
     SessionService::cleanup_expired_sessions(&state).await;
-    
+
     Ok(Json(serde_json::json!({
         "message": "Expired sessions cleaned up",
         "timestamp": chrono::Utc::now()
@@ -99,7 +110,8 @@ pub async fn session_health_check(
     Path(session_id): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     let sessions = state.sessions.read().await;
-    let session = sessions.get(&session_id)
+    let session = sessions
+        .get(&session_id)
         .ok_or_else(|| AppError::BadRequest("Session not found".to_string()))?;
 
     Ok(Json(serde_json::json!({

@@ -4,7 +4,7 @@ use serde_json::json;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load environment
     dotenvy::dotenv().ok();
-    
+
     let api_key = std::env::var("GOOGLE_MAPS_API_KEY")
         .expect("GOOGLE_MAPS_API_KEY environment variable is required");
 
@@ -13,7 +13,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Test the new Nearby Search API
     let client = reqwest::Client::new();
     let url = "https://places.googleapis.com/v1/places:searchNearby";
-    
+
     let request_body = json!({
         "includedTypes": ["restaurant", "cafe"],
         "maxResultCount": 5,
@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await?;
 
     println!("Response status: {}", response.status());
-    
+
     if response.status().is_success() {
         let text = response.text().await?;
         println!("Response body: {}", text);

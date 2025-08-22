@@ -1,5 +1,5 @@
-use reqwest::Client;
 use crate::models::{Coordinate, GoogleGeocodingResponse, ParticipantInput};
+use reqwest::Client;
 use std::error::Error;
 
 pub struct GeocodingService {
@@ -17,8 +17,8 @@ impl GeocodingService {
 
     /// Convert participant inputs (addresses or coordinates) to coordinates
     pub async fn resolve_participants(
-        &self, 
-        participants: &[ParticipantInput]
+        &self,
+        participants: &[ParticipantInput],
     ) -> Result<Vec<Coordinate>, Box<dyn Error + Send + Sync>> {
         let mut resolved_coordinates = Vec::new();
 
@@ -33,20 +33,24 @@ impl GeocodingService {
             resolved_coordinates.push(coordinate);
         }
 
-        tracing::info!("Resolved {} participant locations", resolved_coordinates.len());
+        tracing::info!(
+            "Resolved {} participant locations",
+            resolved_coordinates.len()
+        );
         Ok(resolved_coordinates)
     }
 
     /// Geocode a single address to coordinates
-    async fn geocode_address(&self, address: &str) -> Result<Coordinate, Box<dyn Error + Send + Sync>> {
+    async fn geocode_address(
+        &self,
+        address: &str,
+    ) -> Result<Coordinate, Box<dyn Error + Send + Sync>> {
         let url = "https://maps.googleapis.com/maps/api/geocode/json";
-        
-        let response = self.client
+
+        let response = self
+            .client
             .get(url)
-            .query(&[
-                ("address", address),
-                ("key", &self.api_key),
-            ])
+            .query(&[("address", address), ("key", &self.api_key)])
             .send()
             .await?;
 
@@ -55,9 +59,13 @@ impl GeocodingService {
         }
 
         let geocoding_response: GoogleGeocodingResponse = response.json().await?;
-        
+
         if geocoding_response.status != "OK" {
-            return Err(format!("Geocoding failed with status: {}", geocoding_response.status).into());
+            return Err(format!(
+                "Geocoding failed with status: {}",
+                geocoding_response.status
+            )
+            .into());
         }
 
         if geocoding_response.results.is_empty() {
@@ -66,9 +74,14 @@ impl GeocodingService {
 
         let result = &geocoding_response.results[0];
         let location = &result.geometry.location;
-        
-        tracing::debug!("Geocoded '{}' to {}, {}", address, location.lat, location.lng);
-        
+
+        tracing::debug!(
+            "Geocoded '{}' to {}, {}",
+            address,
+            location.lat,
+            location.lng
+        );
+
         Ok(Coordinate {
             lat: location.lat,
             lng: location.lng,
@@ -91,9 +104,12 @@ impl GeocodingService {
 
         format!(
             "https://www.google.com/maps/dir/{},{}/{},{}/@{},{},15z/data=!3m1!4b1!4m2!4m1!3e{}",
-            origin.lat, origin.lng,
-            destination.lat, destination.lng,
-            destination.lat, destination.lng,
+            origin.lat,
+            origin.lng,
+            destination.lat,
+            destination.lng,
+            destination.lat,
+            destination.lng,
             match mode {
                 "walking" => "2",
                 "transit" => "3",
@@ -108,8 +124,10 @@ impl GeocodingService {
         if let Some(place_id) = place_id {
             format!("https://www.google.com/maps/place/?q=place_id:{}", place_id)
         } else {
-            format!("https://www.google.com/maps/search/?api=1&query={},{}", 
-                coordinate.lat, coordinate.lng)
+            format!(
+                "https://www.google.com/maps/search/?api=1&query={},{}",
+                coordinate.lat, coordinate.lng
+            )
         }
     }
 }
@@ -121,9 +139,15 @@ mod tests {
     #[test]
     fn test_generate_directions_url() {
         let service = GeocodingService::new("test_key".to_string());
-        let origin = Coordinate { lat: 37.7749, lng: -122.4194 };
-        let destination = Coordinate { lat: 37.7849, lng: -122.4094 };
-        
+        let origin = Coordinate {
+            lat: 37.7749,
+            lng: -122.4194,
+        };
+        let destination = Coordinate {
+            lat: 37.7849,
+            lng: -122.4094,
+        };
+
         let url = service.generate_directions_url(&origin, &destination, "drive");
         assert!(url.contains("google.com/maps/dir"));
         assert!(url.contains("37.7749"));
@@ -132,11 +156,14 @@ mod tests {
     #[test]
     fn test_generate_venue_url() {
         let service = GeocodingService::new("test_key".to_string());
-        let coordinate = Coordinate { lat: 37.7749, lng: -122.4194 };
-        
+        let coordinate = Coordinate {
+            lat: 37.7749,
+            lng: -122.4194,
+        };
+
         let url = service.generate_venue_url(&coordinate, Some("test_place_id"));
         assert!(url.contains("place_id:test_place_id"));
-        
+
         let url_no_place_id = service.generate_venue_url(&coordinate, None);
         assert!(url_no_place_id.contains("37.7749"));
     }

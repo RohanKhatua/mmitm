@@ -5,17 +5,13 @@ use uuid::Uuid;
 use crate::{
     error::AppError,
     models::{
-        AppState, CreateSessionRequest, CreateSessionResponse,
-        JoinSessionRequest, JoinSessionResponse,
-        UpdateParticipantLocationRequest, GenerateRecommendationsRequest,
-        SessionStatusResponse,
-        Session, Participant, SessionStatus, ParticipantInput,
-        TransportMode, EnhancedVenueRecommendation,
+        AppState, CreateSessionRequest, CreateSessionResponse, EnhancedVenueRecommendation,
+        GenerateRecommendationsRequest, JoinSessionRequest, JoinSessionResponse, Participant,
+        ParticipantInput, Session, SessionStatus, SessionStatusResponse, TransportMode,
+        UpdateParticipantLocationRequest,
     },
     services::{
-        geometry::GeometryService,
-        google_maps::GoogleMapsService,
-        geocoding::GeocodingService,
+        geocoding::GeocodingService, geometry::GeometryService, google_maps::GoogleMapsService,
         ranking::RankingService,
     },
 };
@@ -31,7 +27,7 @@ impl SessionService {
         let session_id = Uuid::new_v4().to_string();
         let creator_id = Uuid::new_v4().to_string();
         let join_code = Self::generate_join_code();
-        
+
         let creator = Participant {
             user_id: creator_id.clone(),
             name: request.creator_name,
@@ -58,11 +54,15 @@ impl SessionService {
         // Store session
         let mut sessions = state.sessions.write().await;
         sessions.insert(session_id.clone(), session.clone());
-        
+
         // Also store by join code for easy lookup
         sessions.insert(join_code.clone(), session.clone());
 
-        tracing::info!("Created session {} with join code {}", session_id, join_code);
+        tracing::info!(
+            "Created session {} with join code {}",
+            session_id,
+            join_code
+        );
 
         Ok(CreateSessionResponse {
             session_id,
@@ -81,11 +81,14 @@ impl SessionService {
         } else if let Some(code) = request.join_code {
             code
         } else {
-            return Err(AppError::BadRequest("Either session_id or join_code is required".to_string()));
+            return Err(AppError::BadRequest(
+                "Either session_id or join_code is required".to_string(),
+            ));
         };
 
         let mut sessions = state.sessions.write().await;
-        let session = sessions.get_mut(&session_id)
+        let session = sessions
+            .get_mut(&session_id)
             .ok_or_else(|| AppError::BadRequest("Session not found".to_string()))?;
 
         // Check if session is expired
@@ -120,10 +123,13 @@ impl SessionService {
         request: UpdateParticipantLocationRequest,
     ) -> Result<SessionStatusResponse, AppError> {
         let mut sessions = state.sessions.write().await;
-        let session = sessions.get_mut(&request.session_id)
+        let session = sessions
+            .get_mut(&request.session_id)
             .ok_or_else(|| AppError::BadRequest("Session not found".to_string()))?;
 
-        let participant = session.participants.get_mut(&request.user_id)
+        let participant = session
+            .participants
+            .get_mut(&request.user_id)
             .ok_or_else(|| AppError::BadRequest("Participant not found in session".to_string()))?;
 
         participant.location = Some(request.location);
@@ -132,12 +138,16 @@ impl SessionService {
 
         // Check if we should auto-generate recommendations
         let should_generate = Self::should_auto_generate_recommendations(session);
-        
+
         if should_generate {
             session.status = SessionStatus::ReadyForRecommendations;
         }
 
-        tracing::info!("Updated location for user {} in session {}", request.user_id, request.session_id);
+        tracing::info!(
+            "Updated location for user {} in session {}",
+            request.user_id,
+            request.session_id
+        );
 
         Ok(SessionStatusResponse {
             session: session.clone(),
@@ -153,14 +163,17 @@ impl SessionService {
         // Get session
         let session = {
             let sessions = state.sessions.read().await;
-            sessions.get(&request.session_id)
+            sessions
+                .get(&request.session_id)
                 .ok_or_else(|| AppError::BadRequest("Session not found".to_string()))?
                 .clone()
         };
 
         // Verify user is in session
         if !session.participants.contains_key(&request.user_id) {
-            return Err(AppError::BadRequest("User not found in session".to_string()));
+            return Err(AppError::BadRequest(
+                "User not found in session".to_string(),
+            ));
         }
 
         // Update session status
@@ -173,14 +186,17 @@ impl SessionService {
         }
 
         // Collect participant locations
-        let participant_inputs: Vec<ParticipantInput> = session.participants
+        let participant_inputs: Vec<ParticipantInput> = session
+            .participants
             .values()
             .filter_map(|p| p.location.as_ref())
             .cloned()
             .collect();
 
         if participant_inputs.len() < 2 {
-            return Err(AppError::BadRequest("At least 2 participants with locations are required".to_string()));
+            return Err(AppError::BadRequest(
+                "At least 2 participants with locations are required".to_string(),
+            ));
         }
 
         // Generate recommendations using existing logic
@@ -190,7 +206,8 @@ impl SessionService {
             session.settings.categories.clone(),
             session.settings.transport_mode.clone(),
             session.settings.limit,
-        ).await?;
+        )
+        .await?;
 
         // Update session with results
         {
@@ -206,7 +223,11 @@ impl SessionService {
             sessions.get(&request.session_id).unwrap().clone()
         };
 
-        tracing::info!("Generated {} recommendations for session {}", recommendations.len(), request.session_id);
+        tracing::info!(
+            "Generated {} recommendations for session {}",
+            recommendations.len(),
+            request.session_id
+        );
 
         Ok(SessionStatusResponse {
             session: updated_session,
@@ -220,7 +241,8 @@ impl SessionService {
         session_id: &str,
     ) -> Result<SessionStatusResponse, AppError> {
         let sessions = state.sessions.read().await;
-        let session = sessions.get(session_id)
+        let session = sessions
+            .get(session_id)
             .ok_or_else(|| AppError::BadRequest("Session not found".to_string()))?;
 
         Ok(SessionStatusResponse {
@@ -233,7 +255,7 @@ impl SessionService {
     pub async fn cleanup_expired_sessions(state: &AppState) {
         let mut sessions = state.sessions.write().await;
         let now = Utc::now();
-        
+
         sessions.retain(|_, session| {
             if now > session.expires_at {
                 tracing::info!("Removing expired session {}", session.id);
@@ -250,7 +272,7 @@ impl SessionService {
         use rand::Rng;
         let charset: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
         let mut rng = rand::thread_rng();
-        
+
         (0..6)
             .map(|_| {
                 let idx = rng.gen_range(0..charset.len());
@@ -264,7 +286,9 @@ impl SessionService {
             return false;
         }
 
-        let ready_count = session.participants.values()
+        let ready_count = session
+            .participants
+            .values()
             .filter(|p| p.is_ready && p.location.is_some())
             .count();
 
@@ -313,10 +337,8 @@ impl SessionService {
             .await?;
 
         // Rank venues
-        let ranked_venues = RankingService::rank_venues(
-            venues_with_times, 
-            participant_coordinates.len() == 2
-        );
+        let ranked_venues =
+            RankingService::rank_venues(venues_with_times, participant_coordinates.len() == 2);
 
         // Convert to enhanced response format
         let transport_mode_str = match transport_mode {
@@ -330,7 +352,8 @@ impl SessionService {
             .into_iter()
             .take(limit)
             .map(|venue| {
-                let travel_times_info = venue.travel_times
+                let travel_times_info = venue
+                    .travel_times
                     .iter()
                     .enumerate()
                     .map(|(index, &time)| crate::models::TravelTimeInfo {
@@ -352,10 +375,8 @@ impl SessionService {
                     lng: venue.place.coordinate.lng,
                     rating: venue.place.rating,
                     reviews: venue.place.user_ratings_total,
-                    google_maps_url: geocoding_service.generate_venue_url(
-                        &venue.place.coordinate,
-                        Some(&venue.place.place_id)
-                    ),
+                    google_maps_url: geocoding_service
+                        .generate_venue_url(&venue.place.coordinate, Some(&venue.place.place_id)),
                     travel_times: travel_times_info,
                     category: venue
                         .place

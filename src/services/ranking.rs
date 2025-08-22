@@ -23,9 +23,11 @@ impl RankingService {
         // Sort by composite score: fairness first (lower is better), then total time
         venues.sort_by(|a, b| {
             // Primary sort: fairness score (lower is better)
-            let fairness_cmp = a.fairness_score.partial_cmp(&b.fairness_score)
+            let fairness_cmp = a
+                .fairness_score
+                .partial_cmp(&b.fairness_score)
                 .unwrap_or(std::cmp::Ordering::Equal);
-            
+
             if fairness_cmp != std::cmp::Ordering::Equal {
                 return fairness_cmp;
             }
@@ -42,10 +44,10 @@ impl RankingService {
     pub fn calculate_composite_score(venue: &VenueWithTravelTimes, fairness_weight: f64) -> f64 {
         // Normalize travel time (assume max reasonable time is 120 minutes)
         let normalized_time = (venue.total_travel_time as f64) / 120.0;
-        
+
         // Normalize fairness (assume max reasonable difference is 60 minutes)
         let normalized_fairness = venue.fairness_score / 60.0;
-        
+
         // Weighted combination
         (normalized_time * (1.0 - fairness_weight)) + (normalized_fairness * fairness_weight)
     }
@@ -54,12 +56,9 @@ impl RankingService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{PlaceCandidate, Coordinate};
+    use crate::models::{Coordinate, PlaceCandidate};
 
-    fn create_test_venue(
-        name: &str,
-        travel_times: Vec<u32>,
-    ) -> VenueWithTravelTimes {
+    fn create_test_venue(name: &str, travel_times: Vec<u32>) -> VenueWithTravelTimes {
         let total_time: u32 = travel_times.iter().sum();
         let max_time = *travel_times.iter().max().unwrap();
         let min_time = *travel_times.iter().min().unwrap();
@@ -93,7 +92,7 @@ mod tests {
         ];
 
         let ranked = RankingService::rank_venues(venues, false);
-        
+
         // Fair venue should rank higher despite being slower
         assert_eq!(ranked[0].place.name, "fair_slow");
         assert_eq!(ranked[1].place.name, "unfair_fast");
@@ -107,7 +106,7 @@ mod tests {
         ];
 
         let ranked = RankingService::rank_venues(venues, true);
-        
+
         // Small imbalance should rank higher due to penalty on big imbalance
         assert_eq!(ranked[0].place.name, "small_imbalance");
         assert_eq!(ranked[1].place.name, "big_imbalance");
